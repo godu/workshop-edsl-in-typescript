@@ -8,7 +8,7 @@ import Option = O.Option
 
 import { Post, PostUpdate } from '../../domain';
 import { notImplemented } from '../../utils/throw';
-import { ProgramFURI, cacheGetPosts, dbGetPosts, cacheStorePosts, netSendPosts, dbCreatePost } from './api';
+import { ProgramFURI, cacheGetPosts, dbGetPosts, cacheStorePosts, netSendPosts, dbCreatePost, dbUpdatePost, cacheInvalidate } from './api';
 
 // 1. Get a list of user posts, cache and send them to 'review@example.com' for a review
 export const exampleProgram1 =
@@ -33,8 +33,26 @@ export const exampleProgram1 =
 // 2. Create a post and send top-3 to author's email
 export const exampleProgram2 =
   (newPost: Post): Free<ProgramFURI, void> => Do(free)
-    .bind('newPost', dbCreatePost(newPost))
+    .bind('post', dbCreatePost(newPost))
+    .bindL('top3Posts', ({ post }) => free.map(
+      dbGetPosts(post.author.id),
+      allPosts => allPosts.slice(0, 3)
+    ))
+    .bindL('net', ({ top3Posts, post }) => netSendPosts(top3Posts, post.author.email))
+    .return(({ net }) => net);
 
 // 3. Update a post, invalidate the cache if required and return the updated post
 export const exampleProgram3 =
-  (postId: number, update: PostUpdate): Free<ProgramFURI, Option<Post>> => notImplemented();
+  (postId: number, update: PostUpdate): Free<ProgramFURI, Option<Post>> => Do(free)
+      .bind('maybeUpdate', dbUpdatePost(postId, update))
+      .bindL('post', ({maybeUpdate}) => pipe(
+        maybeUpdate,
+        O.fold(
+          () => free.of(maybeUpdate),
+          (updated) => free.map(
+            cacheInvalidate(updated.author.id),
+            () => maybeUpdate
+          )
+        )
+      ))
+      .return(({post}) => post);

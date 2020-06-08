@@ -74,7 +74,7 @@ class DBGetPosts<Continuation> {
   readonly _URI!: ProgramFURI;
 
   constructor(
-    readonly userId: string,
+    readonly userId: number,
     readonly next: (posts: DBPost[]) => Continuation
   ) { }
 }
@@ -95,7 +95,7 @@ class DBUpdatePost<Continuation> {
   readonly _URI!: ProgramFURI;
 
   constructor(
-    readonly postId: string,
+    readonly postId: number,
     readonly update: PostUpdate,
     readonly next: (updatedPost: Option<DBPost>) => Continuation
   ) { }
@@ -164,7 +164,7 @@ export const cacheInvalidate =
  * @param userId User ID – author of posts
  */
 export const dbGetPosts =
-  (userId: number) => liftF(new DBGetPosts(`${userId}`, identity));
+  (userId: number) => liftF(new DBGetPosts(userId, identity));
 
 /**
  * Stores post in the database.
@@ -181,7 +181,7 @@ export const dbCreatePost =
  * @param update A set of updated fields for this post ID
  */
 export const dbUpdatePost =
-  (postId: number, update: PostUpdate) => liftF(new DBUpdatePost(`${postId}`, update, identity))
+  (postId: number, update: PostUpdate) => liftF(new DBUpdatePost(postId, update, identity))
 
 /**
  * Sends a list of posts via network.
